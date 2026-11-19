@@ -1,0 +1,22 @@
+# NutriDish — Python dependencies
+
+# ML
+tensorflow>=2.13.0
+numpy>=1.24.0
+Pillow>=9.5.0
+
+# Dataset
+datasets>=2.14.0     # HuggingFace datasets (streaming)
+huggingface-hub>=0.16.0
+
+# Backend
+fastapi>=0.103.0
+uvicorn[standard]>=0.23.0
+python-multipart>=0.0.6   # Required for file uploads in FastAPI
+
+# Database
+sqlalchemy>=2.0.0
+
+# Dev / testing
+httpx>=0.24.0         # for FastAPI TestClient
+pytest>=7.4.0

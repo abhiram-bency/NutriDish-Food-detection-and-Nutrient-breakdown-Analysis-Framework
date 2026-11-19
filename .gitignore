@@ -1,0 +1,92 @@
+# Virtual environment
+.venv/
+venv/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Dataset caches (HuggingFace Food-101)
+dataset_cache/
+
+# Large model artifacts (trained models)
+*.keras
+*.h5
+*.hdf5
+*.hdf
+
+# Training logs and artifacts
+training.log
+*.log
+
+# SQLite database with user food logs (can be regenerated)
+*.db
+*.sqlite
+*.sqlite3
+
+# System package files (Debian/Ubuntu)
+*.deb
+*.dpkg*
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS-specific files
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*tmp*
+
+# Environment files (if any)
+.env*
+*.secrets*
+
+# HuggingFace cache (if any)
+.hf_cache/
+
+# TensorFlow model directory (if any)
+models/
+
+# Jupyter notebooks (if any)
+*.ipynb
+
+# Documentation build artifacts
+/_build/
+*.html
+
+# Lock files for dependencies (except requirements*.txt)
+poetry.lock
+Pipfile.lock
+
+# Cache files for download tools (huggingface-cli)
+.huggingface/
+
+# Add any other temporary or generated files here
+
+# Model artifacts (trained models are versioned)
+# Remove the following line if you want to use Git LFS for large models
+# *.keras
+# *.h5
+
+# Note: If you have very large model files (e.g., >100MB each) and want to use Git LFS,
+# uncomment the following lines and install git-lfs:
+# *.keras filter=lfs diff=lfs merge=lfs -text
+# *.h5 filter=lfs diff=lfs merge=lfs -text
+# *.hdf5 filter=lfs diff=lfs merge=lfs -text
+
+# Test data (sample images for CLI testing)
+test_images/
+test_images/*
+*Zone.Identifier
+
+# Backup directories
+NutriDish_backup_*/
+*/backup_*/
