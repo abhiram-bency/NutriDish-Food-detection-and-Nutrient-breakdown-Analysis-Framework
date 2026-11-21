@@ -3,6 +3,8 @@ Nutritional database for all Food-101 classes.
 Values are per 100g serving (approximate).
 """
 
+import math
+
 NUTRITION_DB = {
     "apple_pie": {"calories": 237, "protein": 2.0, "carbs": 34.0, "fat": 11.0},
     "baby_back_ribs": {"calories": 290, "protein": 20.0, "carbs": 5.0, "fat": 22.0},
@@ -111,6 +113,50 @@ NUTRITION_DB = {
 FOOD101_CLASSES = sorted(NUTRITION_DB.keys())
 
 DEFAULT_NUTRITION = {"calories": 200, "protein": 8.0, "carbs": 25.0, "fat": 8.0}
+
+BASE_NUTRITION_KEYS = ("calories", "protein", "carbs", "fat")
+OPTIONAL_NUTRITION_KEYS = ("fiber", "sugar", "sodium")  # units: g, g, mg
+
+
+def _is_numeric(value) -> bool:
+    """Return True for real int/float values (excluding bool)."""
+    return isinstance(value, (int, float)) and not isinstance(value, bool)
+
+
+def _validate_serving_g(serving_g) -> float:
+    """Validate a serving weight in grams.
+
+    Accepts positive int/float values (bool is rejected). Rejects zero,
+    negative, NaN, infinite, boolean, and non-numeric inputs.
+
+    Returns the validated serving weight as a float.
+    """
+    if isinstance(serving_g, bool) or not isinstance(serving_g, (int, float)):
+        raise ValueError("serving_g must be a positive number.")
+    value = float(serving_g)
+    if math.isnan(value) or math.isinf(value) or value <= 0:
+        raise ValueError("serving_g must be a positive finite number.")
+    return value
+
+
+def scale_nutrition(nutrition: dict, serving_g: float) -> dict:
+    """Scale per-100g nutrition values to a given serving size in grams.
+
+    Formula: scaled_value = per_100g_value * serving_g / 100
+
+    Returns a new dictionary; the input nutrition dictionary is not mutated.
+
+    Base keys (calories, protein, carbs, fat) are scaled when present.
+    Optional keys (fiber, sugar, sodium) are scaled when present, otherwise
+    represented as None. Sodium, when present, is expressed in milligrams.
+    """
+    serving = _validate_serving_g(serving_g)
+    factor = serving / 100.0
+    scaled: dict = {}
+    for key in BASE_NUTRITION_KEYS + OPTIONAL_NUTRITION_KEYS:
+        value = nutrition.get(key)
+        scaled[key] = (value * factor) if _is_numeric(value) else None
+    return scaled
 
 
 def get_nutrition(food_label: str) -> dict:

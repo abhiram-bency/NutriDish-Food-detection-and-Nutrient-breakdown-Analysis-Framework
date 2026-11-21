@@ -7,6 +7,7 @@ from data.nutrition_db import (
     FOOD101_CLASSES,
     NUTRITION_DB,
     get_nutrition,
+    scale_nutrition,
 )
 
 
@@ -69,3 +70,84 @@ class TestNutritionLookup:
         assert n["protein"] > 0
         assert n["carbs"] > 0
         assert n["fat"] > 0
+
+
+class TestServingScaling:
+    """Regression tests for the serving-aware nutrition scaling function."""
+
+    def test_100g_serving_returns_baseline_values(self):
+        scaled = scale_nutrition(get_nutrition("pizza"), 100)
+        assert scaled["calories"] == pytest.approx(266.0, abs=0.5)
+        assert scaled["protein"] == pytest.approx(11.0, abs=0.5)
+        assert scaled["carbs"] == pytest.approx(33.0, abs=0.5)
+        assert scaled["fat"] == pytest.approx(10.0, abs=0.5)
+
+    def test_50g_serving_scales_to_half(self):
+        scaled = scale_nutrition(get_nutrition("pizza"), 50)
+        assert scaled["calories"] == pytest.approx(133.0, abs=0.5)
+        assert scaled["protein"] == pytest.approx(5.5, abs=0.5)
+        assert scaled["carbs"] == pytest.approx(16.5, abs=0.5)
+        assert scaled["fat"] == pytest.approx(5.0, abs=0.5)
+
+    def test_200g_serving_scales_to_double(self):
+        scaled = scale_nutrition(get_nutrition("pizza"), 200)
+        assert scaled["calories"] == pytest.approx(532.0, abs=0.5)
+        assert scaled["protein"] == pytest.approx(22.0, abs=0.5)
+        assert scaled["carbs"] == pytest.approx(66.0, abs=0.5)
+        assert scaled["fat"] == pytest.approx(20.0, abs=0.5)
+
+    def test_fractional_serving_weights(self):
+        scaled = scale_nutrition(get_nutrition("pizza"), 150)
+        assert scaled["calories"] == pytest.approx(399.0, abs=0.5)
+        assert scaled["protein"] == pytest.approx(16.5, abs=0.5)
+
+    def test_invalid_zero_serving_raises(self):
+        with pytest.raises(ValueError):
+            scale_nutrition(get_nutrition("pizza"), 0)
+
+    def test_negative_serving_raises(self):
+        with pytest.raises(ValueError):
+            scale_nutrition(get_nutrition("pizza"), -50)
+
+    def test_nan_and_infinity_serving_raise(self):
+        with pytest.raises(ValueError):
+            scale_nutrition(get_nutrition("pizza"), float("nan"))
+        with pytest.raises(ValueError):
+            scale_nutrition(get_nutrition("pizza"), float("inf"))
+
+    def test_boolean_serving_raises(self):
+        with pytest.raises(ValueError):
+            scale_nutrition(get_nutrition("pizza"), True)
+
+    def test_non_numeric_serving_raises(self):
+        with pytest.raises(ValueError):
+            scale_nutrition(get_nutrition("pizza"), "150")
+
+    def test_original_nutrition_dict_not_mutated(self):
+        original = get_nutrition("pizza")
+        snapshot = dict(original)
+        scaled = scale_nutrition(original, 200)
+        assert original == snapshot
+        assert scaled is not original
+
+    def test_unknown_food_behavior_remains_unchanged(self):
+        assert get_nutrition("definitely_not_a_food_xyz") == DEFAULT_NUTRITION
+        scaled_default = scale_nutrition(DEFAULT_NUTRITION, 100)
+        assert scaled_default["calories"] == pytest.approx(200.0, abs=0.5)
+
+    def test_missing_optional_nutrients_remain_none(self):
+        scaled = scale_nutrition(get_nutrition("pizza"), 100)
+        assert scaled.get("fiber") is None
+        assert scaled.get("sugar") is None
+        assert scaled.get("sodium") is None
+
+    def test_sodium_units_remain_milligrams(self):
+        nutrition = {"calories": 100, "protein": 1, "carbs": 2, "fat": 3, "sodium": 400.0}
+        scaled_100g = scale_nutrition(nutrition, 100)
+        scaled_200g = scale_nutrition(nutrition, 200)
+        assert scaled_100g["sodium"] == pytest.approx(400.0)  # mg
+        assert scaled_200g["sodium"] == pytest.approx(800.0)  # mg
+
+    def test_existing_nutrition_lookup_still_works(self):
+        n = get_nutrition("pizza")
+        assert n["calories"] == pytest.approx(266.0, abs=0.5)
