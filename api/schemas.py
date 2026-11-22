@@ -31,6 +31,7 @@ class AnalyzeImageResponse(BaseModel):
     carbs:          float
     fat:            float
     top_predictions: List[PredictionResult]
+    serving_g:      Optional[float] = 100.0
 
 
 # ─── /log-food ────────────────────────────────────────────────────────────────

@@ -14,7 +14,7 @@ import os
 from datetime import date
 from typing import Optional
 
-from fastapi import FastAPI, File, UploadFile, HTTPException, Depends, Query
+from fastapi import FastAPI, File, UploadFile, HTTPException, Depends, Query, Form
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 
@@ -31,7 +31,7 @@ from api.schemas import (
     LogsResponse,
     PredictionResult,
 )
-from data.nutrition_db import get_nutrition
+from data.nutrition_db import get_nutrition, scale_nutrition
 from model.inference import FoodPredictor
 
 # ─── App setup ────────────────────────────────────────────────────────────────
@@ -103,12 +103,13 @@ async def health():
 )
 async def analyze_image(
     file: UploadFile = File(..., description="JPEG / PNG food image"),
+    serving_g: str = Form(default="100", description="Serving weight in grams (default 100)"),
 ):
     """
     Upload a food image and receive:
     - Predicted food label
     - Confidence score
-    - Calorie + macro breakdown (per 100 g)
+    - Calorie + macro breakdown (for the given serving size)
     """
     predictor = get_predictor()  # Raises 503-ready error if not loaded
 
@@ -135,13 +136,25 @@ async def analyze_image(
     # ── Nutrition lookup ─────────────────────────────────────────────────────
     nutrition = get_nutrition(result["label"])
 
+    # ── Serve-aware scaling ──────────────────────────────────────────────────
+    try:
+        serving_value = float(str(serving_g))
+    except (ValueError, TypeError):
+        raise HTTPException(status_code=422, detail="Invalid serving weight.")
+
+    try:
+        scaled = scale_nutrition(nutrition, serving_value)
+    except ValueError:
+        raise HTTPException(status_code=422, detail="Invalid serving weight.")
+
     return AnalyzeImageResponse(
         food=result["label"],
         confidence=round(result["confidence"], 4),
-        calories=nutrition["calories"],
-        protein=nutrition["protein"],
-        carbs=nutrition["carbs"],
-        fat=nutrition["fat"],
+        calories=scaled["calories"],
+        protein=scaled["protein"],
+        carbs=scaled["carbs"],
+        fat=scaled["fat"],
+        serving_g=serving_value,
         top_predictions=[
             PredictionResult(label=p["label"], confidence=round(p["confidence"], 4))
             for p in result["top_k"]
