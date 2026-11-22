@@ -209,11 +209,6 @@ class TestFoodLogging:
         assert data["count"] == 1
 
     def test_log_food_stores_scaled_values_once(self, client):
-        # Clear prior entries in this isolated in-memory database.
-        existing = client.get("/logs")
-        for log in existing.json()["logs"]:
-            client.delete(f"/logs/{log['id']}")
-
         payload = {
             "food": "pizza",
             "confidence": 0.93,

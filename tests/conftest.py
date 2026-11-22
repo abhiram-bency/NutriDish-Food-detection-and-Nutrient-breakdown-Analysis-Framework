@@ -18,34 +18,39 @@ from model.inference import FoodPredictor
 
 SQLALCHEMY_DATABASE_URL = "sqlite:///:memory:"
 
-test_engine = create_engine(
-    SQLALCHEMY_DATABASE_URL,
-    connect_args={"check_same_thread": False},
-    poolclass=StaticPool,
-)
-TestingSessionLocal = sessionmaker(
-    autocommit=False,
-    autoflush=False,
-    bind=test_engine,
-)
-Base.metadata.create_all(bind=test_engine)
 
-
-def override_get_db():
-    db = TestingSessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
-
-app.dependency_overrides[get_db] = override_get_db
+@pytest.fixture
+def db_engine():
+    """Function-scoped in-memory SQLite engine; fresh database per test."""
+    engine = create_engine(
+        SQLALCHEMY_DATABASE_URL,
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    Base.metadata.create_all(bind=engine)
+    yield engine
+    engine.dispose()
 
 
 @pytest.fixture
-def client():
-    """FastAPI TestClient without running lifespan/startup (no real model/DB)."""
-    return TestClient(app)
+def client(db_engine):
+    """FastAPI TestClient with a fresh in-memory DB per test (no lifespan/startup)."""
+    SessionLocal = sessionmaker(
+        autocommit=False,
+        autoflush=False,
+        bind=db_engine,
+    )
+
+    def override_get_db():
+        db = SessionLocal()
+        try:
+            yield db
+        finally:
+            db.close()
+
+    app.dependency_overrides[get_db] = override_get_db
+    yield TestClient(app)
+    app.dependency_overrides.pop(get_db, None)
 
 
 @pytest.fixture
