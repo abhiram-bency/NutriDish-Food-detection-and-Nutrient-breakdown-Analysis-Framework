@@ -62,6 +62,10 @@ models/
 /_build/
 *.html
 
+# NutriDish frontend source is tracked
+!ui/
+!ui/index.html
+
 # Lock files for dependencies (except requirements*.txt)
 poetry.lock
 Pipfile.lock

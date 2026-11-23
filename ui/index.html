@@ -1,0 +1,1276 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NutriDish — AI Food Analysis</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500&family=DM+Mono:wght@400;500&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0a0a0a;
+            --surface: #111111;
+            --surface2: #1a1a1a;
+            --border: #222222;
+            --accent: #c8f135;
+            --accent2: #ff6b35;
+            --text: #f0f0f0;
+            --muted: #666666;
+            --card-radius: 16px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'DM Sans', sans-serif;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* ── Noise texture overlay ── */
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* ── Header ── */
+        header {
+            position: relative;
+            z-index: 10;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 24px 48px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .logo {
+            display: flex;
+            align-items: baseline;
+            gap: 8px;
+        }
+
+        .logo-text {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 32px;
+            letter-spacing: 2px;
+            color: var(--accent);
+            line-height: 1;
+        }
+
+        .logo-tag {
+            font-family: 'DM Mono', monospace;
+            font-size: 11px;
+            color: var(--muted);
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        .header-badge {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            border-radius: 100px;
+            padding: 8px 16px;
+            font-size: 12px;
+            color: var(--muted);
+            font-family: 'DM Mono', monospace;
+        }
+
+        .status-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: var(--accent);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+
+            50% {
+                opacity: 0.5;
+                transform: scale(0.8);
+            }
+        }
+
+        /* ── Hero ── */
+        .hero {
+            position: relative;
+            z-index: 10;
+            text-align: center;
+            padding: 72px 48px 48px;
+        }
+
+        .hero-eyebrow {
+            font-family: 'DM Mono', monospace;
+            font-size: 11px;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            color: var(--accent);
+            margin-bottom: 20px;
+        }
+
+        .hero-title {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: clamp(64px, 10vw, 120px);
+            line-height: 0.9;
+            letter-spacing: 2px;
+            margin-bottom: 24px;
+        }
+
+        .hero-title span {
+            color: var(--accent);
+        }
+
+        .hero-sub {
+            font-size: 16px;
+            color: var(--muted);
+            max-width: 480px;
+            margin: 0 auto;
+            line-height: 1.7;
+            font-weight: 300;
+        }
+
+        /* ── Main layout ── */
+        .main {
+            position: relative;
+            z-index: 10;
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 0 48px 80px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+            align-items: start;
+        }
+
+        /* ── Upload card ── */
+        .upload-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--card-radius);
+            overflow: hidden;
+        }
+
+        .card-header {
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .card-number {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 13px;
+            letter-spacing: 1px;
+            color: var(--accent);
+            background: rgba(200, 241, 53, 0.1);
+            border: 1px solid rgba(200, 241, 53, 0.3);
+            border-radius: 4px;
+            padding: 2px 8px;
+        }
+
+        .card-title {
+            font-size: 14px;
+            font-weight: 500;
+            letter-spacing: 0.5px;
+        }
+
+        .card-body {
+            padding: 24px;
+        }
+
+        /* ── Drop zone ── */
+        .dropzone {
+            border: 2px dashed var(--border);
+            border-radius: 12px;
+            padding: 48px 24px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .dropzone:hover,
+        .dropzone.drag-over {
+            border-color: var(--accent);
+            background: rgba(200, 241, 53, 0.03);
+        }
+
+        .dropzone.has-image {
+            border-style: solid;
+            border-color: var(--accent);
+            padding: 0;
+        }
+
+        .dropzone input[type=file] {
+            position: absolute;
+            inset: 0;
+            opacity: 0;
+            cursor: pointer;
+            width: 100%;
+            height: 100%;
+        }
+
+        .drop-icon {
+            font-size: 40px;
+            margin-bottom: 12px;
+            display: block;
+        }
+
+        .drop-title {
+            font-size: 15px;
+            font-weight: 500;
+            margin-bottom: 6px;
+        }
+
+        .drop-sub {
+            font-size: 12px;
+            color: var(--muted);
+            font-family: 'DM Mono', monospace;
+        }
+
+        #preview-img {
+            width: 100%;
+            height: 280px;
+            object-fit: cover;
+            border-radius: 10px;
+            display: none;
+        }
+
+        .dropzone.has-image #preview-img {
+            display: block;
+        }
+
+        .dropzone.has-image .drop-content {
+            display: none;
+        }
+
+        /* ── Analyze button ── */
+        .analyze-btn {
+            width: 100%;
+            margin-top: 16px;
+            padding: 16px;
+            background: var(--accent);
+            color: #0a0a0a;
+            border: none;
+            border-radius: 10px;
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 18px;
+            letter-spacing: 2px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .analyze-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(200, 241, 53, 0.25);
+        }
+
+        .analyze-btn:active {
+            transform: translateY(0);
+        }
+
+        .analyze-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .analyze-btn.loading {
+            color: transparent;
+        }
+
+        .analyze-btn.loading::after {
+            content: '';
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            border: 2px solid #0a0a0a;
+            border-top-color: transparent;
+            border-radius: 50%;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            animation: spin 0.7s linear infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: translate(-50%, -50%) rotate(360deg);
+            }
+        }
+
+        /* ── Results panel ── */
+        .results-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--card-radius);
+            overflow: hidden;
+            opacity: 0;
+            transform: translateY(16px);
+            transition: all 0.4s ease;
+        }
+
+        .results-card.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* ── Food label hero ── */
+        .food-hero {
+            padding: 28px 24px 24px;
+            border-bottom: 1px solid var(--border);
+            background: linear-gradient(135deg, rgba(200, 241, 53, 0.05) 0%, transparent 60%);
+        }
+
+        .food-label {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 48px;
+            letter-spacing: 2px;
+            line-height: 1;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+        }
+
+        .confidence-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .confidence-bar-wrap {
+            flex: 1;
+            height: 4px;
+            background: var(--border);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+
+        .confidence-bar {
+            height: 100%;
+            background: var(--accent);
+            border-radius: 2px;
+            transition: width 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .confidence-pct {
+            font-family: 'DM Mono', monospace;
+            font-size: 13px;
+            color: var(--accent);
+            font-weight: 500;
+            min-width: 40px;
+            text-align: right;
+        }
+
+        /* ── Serving line ── */
+        .serving-line {
+            display: flex;
+            align-items: baseline;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+
+        .serving-label {
+            font-family: 'DM Mono', monospace;
+            font-size: 10px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: var(--muted);
+        }
+
+        .serving-value {
+            font-family: 'DM Mono', monospace;
+            font-size: 22px;
+            color: var(--accent);
+        }
+
+        /* ── Serving weight input row ── */
+        .serving-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-top: 14px;
+        }
+
+        .serving-input {
+            width: 110px;
+            background: var(--surface2);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text);
+            font-family: 'DM Mono', monospace;
+            font-size: 14px;
+            padding: 8px 12px;
+            outline: none;
+        }
+
+        .serving-input:focus {
+            border-color: var(--accent);
+        }
+
+        /* ── Macro grid ── */
+        .macro-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1px;
+            background: var(--border);
+        }
+
+        .macro-cell {
+            background: var(--surface);
+            padding: 20px 24px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .macro-cell::before {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            height: 2px;
+            width: 0;
+            transition: width 0.8s ease 0.3s;
+        }
+
+        .macro-cell.calories::before {
+            background: #ff6b35;
+            width: var(--bar-w, 0%);
+        }
+
+        .macro-cell.protein::before {
+            background: #3b82f6;
+            width: var(--bar-w, 0%);
+        }
+
+        .macro-cell.carbs::before {
+            background: var(--accent);
+            width: var(--bar-w, 0%);
+        }
+
+        .macro-cell.fat::before {
+            background: #a855f7;
+            width: var(--bar-w, 0%);
+        }
+
+        .macro-label {
+            font-family: 'DM Mono', monospace;
+            font-size: 10px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: var(--muted);
+            margin-bottom: 6px;
+        }
+
+        .macro-value {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 36px;
+            letter-spacing: 1px;
+            line-height: 1;
+            margin-bottom: 2px;
+        }
+
+        .macro-value.calories {
+            color: #ff6b35;
+        }
+
+        .macro-value.protein {
+            color: #3b82f6;
+        }
+
+        .macro-value.carbs {
+            color: var(--accent);
+        }
+
+        .macro-value.fat {
+            color: #a855f7;
+        }
+
+        .macro-unit {
+            font-size: 11px;
+            color: var(--muted);
+            font-family: 'DM Mono', monospace;
+        }
+
+        /* ── Top predictions ── */
+        .predictions-section {
+            padding: 20px 24px;
+            border-top: 1px solid var(--border);
+        }
+
+        .section-label {
+            font-family: 'DM Mono', monospace;
+            font-size: 10px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: var(--muted);
+            margin-bottom: 14px;
+        }
+
+        .prediction-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+            opacity: 0;
+            transform: translateX(-8px);
+            transition: all 0.3s ease;
+        }
+
+        .prediction-row.show {
+            opacity: 1;
+            transform: translateX(0);
+        }
+
+        .prediction-row:last-child {
+            border-bottom: none;
+        }
+
+        .pred-rank {
+            font-family: 'DM Mono', monospace;
+            font-size: 11px;
+            color: var(--muted);
+            width: 20px;
+            text-align: center;
+        }
+
+        .pred-name {
+            flex: 1;
+            font-size: 13px;
+            font-weight: 500;
+            text-transform: capitalize;
+        }
+
+        .pred-bar-wrap {
+            width: 80px;
+            height: 3px;
+            background: var(--border);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+
+        .pred-bar {
+            height: 100%;
+            background: var(--accent);
+            border-radius: 2px;
+            opacity: 0.5;
+            transition: width 0.6s ease;
+        }
+
+        .pred-row-1 .pred-bar {
+            opacity: 1;
+        }
+
+        .pred-pct {
+            font-family: 'DM Mono', monospace;
+            font-size: 11px;
+            color: var(--muted);
+            width: 38px;
+            text-align: right;
+        }
+
+        /* ── Log button ── */
+        .log-btn {
+            width: calc(100% - 48px);
+            margin: 0 24px 24px;
+            padding: 14px;
+            background: transparent;
+            color: var(--text);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            font-family: 'DM Sans', sans-serif;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .log-btn:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+            background: rgba(200, 241, 53, 0.04);
+        }
+
+        .log-btn.logged {
+            border-color: var(--accent);
+            color: var(--accent);
+            background: rgba(200, 241, 53, 0.08);
+        }
+
+        /* ── Daily summary ── */
+        .summary-card {
+            grid-column: 1 / -1;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--card-radius);
+            overflow: hidden;
+            opacity: 0;
+            transform: translateY(16px);
+            transition: all 0.4s ease 0.2s;
+        }
+
+        .summary-card.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 0;
+        }
+
+        .summary-cell {
+            padding: 24px;
+            border-right: 1px solid var(--border);
+            text-align: center;
+        }
+
+        .summary-cell:last-child {
+            border-right: none;
+        }
+
+        .summary-num {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 42px;
+            letter-spacing: 1px;
+            line-height: 1;
+            margin-bottom: 4px;
+        }
+
+        .summary-lbl {
+            font-family: 'DM Mono', monospace;
+            font-size: 10px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: var(--muted);
+        }
+
+        /* ── Logs list ── */
+        .logs-list {
+            padding: 0 24px 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .logs-list::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .logs-list::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .logs-list::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 2px;
+        }
+
+        .log-entry {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 14px;
+            background: var(--surface2);
+            border-radius: 8px;
+            font-size: 13px;
+        }
+
+        .log-food {
+            font-weight: 500;
+            text-transform: capitalize;
+        }
+
+        .log-time {
+            font-family: 'DM Mono', monospace;
+            font-size: 11px;
+            color: var(--muted);
+        }
+
+        .log-cal {
+            font-family: 'DM Mono', monospace;
+            font-size: 12px;
+            color: var(--accent);
+        }
+
+        /* ── Empty state ── */
+        .empty-state {
+            grid-column: 2;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 300px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--card-radius);
+            color: var(--muted);
+            gap: 12px;
+            text-align: center;
+            padding: 40px;
+        }
+
+        .empty-icon {
+            font-size: 48px;
+            opacity: 0.3;
+        }
+
+        .empty-title {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 20px;
+            letter-spacing: 1px;
+            color: var(--border);
+        }
+
+        .empty-sub {
+            font-size: 12px;
+            color: var(--muted);
+            font-family: 'DM Mono', monospace;
+            max-width: 200px;
+            line-height: 1.6;
+        }
+
+        /* ── Toast ── */
+        .toast {
+            position: fixed;
+            bottom: 32px;
+            right: 32px;
+            background: var(--surface2);
+            border: 1px solid var(--accent);
+            color: var(--text);
+            padding: 12px 20px;
+            border-radius: 10px;
+            font-size: 13px;
+            font-family: 'DM Mono', monospace;
+            transform: translateY(100px);
+            opacity: 0;
+            transition: all 0.3s ease;
+            z-index: 100;
+        }
+
+        .toast.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+
+        /* ── Decorative bg lines ── */
+        .bg-lines {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 1;
+            overflow: hidden;
+            opacity: 0.03;
+        }
+
+        .bg-lines::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: repeating-linear-gradient(0deg,
+                    transparent,
+                    transparent 40px,
+                    rgba(200, 241, 53, 1) 40px,
+                    rgba(200, 241, 53, 1) 41px);
+        }
+
+        /* ── Error state ── */
+        .error-msg {
+            margin-top: 12px;
+            padding: 12px 16px;
+            background: rgba(255, 107, 53, 0.1);
+            border: 1px solid rgba(255, 107, 53, 0.3);
+            border-radius: 8px;
+            font-size: 12px;
+            font-family: 'DM Mono', monospace;
+            color: var(--accent2);
+            display: none;
+        }
+
+        .error-msg.show {
+            display: block;
+        }
+
+        /* ── Responsive ── */
+        @media (max-width: 768px) {
+            header {
+                padding: 16px 24px;
+            }
+
+            .hero {
+                padding: 48px 24px 32px;
+            }
+
+            .main {
+                grid-template-columns: 1fr;
+                padding: 0 24px 60px;
+            }
+
+            .empty-state {
+                display: none;
+            }
+
+            .summary-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+
+            .summary-cell:nth-child(2) {
+                border-right: none;
+            }
+
+            .summary-card {
+                grid-column: 1;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="bg-lines"></div>
+
+    <header>
+        <div class="logo">
+            <span class="logo-text">NutriDish</span>
+            <span class="logo-tag">/ CV Food Analysis</span>
+        </div>
+        <div class="header-badge">
+            <div class="status-dot"></div>
+            <span id="api-status">connecting…</span>
+        </div>
+    </header>
+
+    <div class="hero">
+        <p class="hero-eyebrow">Computer Vision · MobileNetV2 · Food-101</p>
+        <h1 class="hero-title">SNAP IT.<br><span>KNOW IT.</span></h1>
+        <p class="hero-sub">Upload a food photo and get instant AI-powered nutritional analysis powered by deep
+            learning.</p>
+    </div>
+
+    <div class="main">
+
+        <!-- Upload -->
+        <div class="upload-card">
+            <div class="card-header">
+                <span class="card-number">01</span>
+                <span class="card-title">Upload Food Image</span>
+            </div>
+            <div class="card-body">
+                <div class="dropzone" id="dropzone">
+                    <input type="file" id="file-input" accept="image/*">
+                    <div class="drop-content">
+                        <span class="drop-icon">🍽️</span>
+                        <p class="drop-title">Drop your food photo here</p>
+                        <p class="drop-sub">or click to browse · JPG, PNG</p>
+                    </div>
+                    <img id="preview-img" alt="Preview">
+                </div>
+                <div class="serving-row">
+                    <label class="serving-label" for="serving-input">Serving weight (g)</label>
+                    <input type="number" id="serving-input" class="serving-input" min="0" step="0.1" value="100" inputmode="decimal" placeholder="100">
+                </div>
+                <div class="error-msg" id="error-msg"></div>
+                <button class="analyze-btn" id="analyze-btn" disabled>ANALYZE FOOD</button>
+            </div>
+        </div>
+
+        <!-- Results (hidden until analysis) -->
+        <div id="empty-state" class="empty-state">
+            <div class="empty-icon">🔬</div>
+            <div class="empty-title">Awaiting Analysis</div>
+            <p class="empty-sub">Upload a food image and hit analyze to see results here</p>
+        </div>
+
+        <div class="results-card" id="results-card">
+            <div class="card-header">
+                <span class="card-number">02</span>
+                <span class="card-title">Analysis Results</span>
+            </div>
+
+            <div class="food-hero">
+                <div class="food-label" id="food-label">—</div>
+                <div class="confidence-row">
+                    <div class="confidence-bar-wrap">
+                        <div class="confidence-bar" id="conf-bar" style="width:0%"></div>
+                    </div>
+                    <span class="confidence-pct" id="conf-pct">—</span>
+                </div>
+            </div>
+
+            <div class="macro-grid">
+                <div class="macro-cell calories">
+                    <div class="macro-label">Calories</div>
+                    <div class="macro-value calories" id="val-cal">—</div>
+                    <div class="macro-unit">kcal / 100g</div>
+                </div>
+                <div class="macro-cell protein">
+                    <div class="macro-label">Protein</div>
+                    <div class="macro-value protein" id="val-pro">—</div>
+                    <div class="macro-unit">grams / 100g</div>
+                </div>
+                <div class="macro-cell carbs">
+                    <div class="macro-label">Carbs</div>
+                    <div class="macro-value carbs" id="val-carb">—</div>
+                    <div class="macro-unit">grams / 100g</div>
+                </div>
+                <div class="macro-cell fat">
+                    <div class="macro-label">Fat</div>
+                    <div class="macro-value fat" id="val-fat">—</div>
+                    <div class="macro-unit">grams / 100g</div>
+                </div>
+            </div>
+
+            <div class="serving-line">
+                <span class="serving-label">Serving</span>
+                <span class="serving-value" id="result-serving">100 g</span>
+            </div>
+
+            <div class="estimate-note">AI-generated estimate · for informational purposes</div>
+
+            <div class="predictions-section">
+                <div class="section-label">Top Predictions</div>
+                <div id="predictions-list"></div>
+            </div>
+
+            <button class="log-btn" id="log-btn">
+                <span>＋</span> Log This Meal
+            </button>
+        </div>
+
+        <!-- Daily Summary -->
+        <div class="summary-card" id="summary-card">
+            <div class="card-header">
+                <span class="card-number">03</span>
+                <span class="card-title">Today's Intake</span>
+            </div>
+            <div class="summary-grid">
+                <div class="summary-cell">
+                    <div class="summary-num" id="sum-meals" style="color:var(--text)">0</div>
+                    <div class="summary-lbl">Meals Logged</div>
+                </div>
+                <div class="summary-cell">
+                    <div class="summary-num" id="sum-cal" style="color:#ff6b35">0</div>
+                    <div class="summary-lbl">Total Calories</div>
+                </div>
+                <div class="summary-cell">
+                    <div class="summary-num" id="sum-pro" style="color:#3b82f6">0</div>
+                    <div class="summary-lbl">Protein (g)</div>
+                </div>
+                <div class="summary-cell">
+                    <div class="summary-num" id="sum-carb" style="color:var(--accent)">0</div>
+                    <div class="summary-lbl">Carbs (g)</div>
+                </div>
+            </div>
+            <div class="card-header" style="border-top:1px solid var(--border)">
+                <span class="card-number" style="color:var(--muted);border-color:var(--border)">LOG</span>
+                <span class="card-title">Meal History</span>
+            </div>
+            <div class="logs-list" id="logs-list">
+                <div
+                    style="text-align:center;color:var(--muted);font-size:12px;font-family:'DM Mono',monospace;padding:20px 0">
+                    No meals logged yet
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+        const API = 'http://127.0.0.1:8000';
+
+        // ── API status check ──────────────────────────────────────────────────────
+        async function checkStatus() {
+            try {
+                const r = await fetch(`${API}/health`, { signal: AbortSignal.timeout(3000) });
+                const d = await r.json();
+                document.getElementById('api-status').textContent =
+                    d.model_loaded ? 'model ready' : 'api online · model loading';
+            } catch {
+                document.getElementById('api-status').textContent = 'api offline';
+                document.querySelector('.status-dot').style.background = '#ff6b35';
+            }
+        }
+        checkStatus();
+
+        // ── File upload ───────────────────────────────────────────────────────────
+        const dropzone = document.getElementById('dropzone');
+        const fileInput = document.getElementById('file-input');
+        const previewImg = document.getElementById('preview-img');
+        const analyzeBtn = document.getElementById('analyze-btn');
+        const errorMsg = document.getElementById('error-msg');
+        const servingInput = document.getElementById('serving-input');
+
+        let currentFile = null;
+        let currentResult = null;
+        let currentServingG = null;
+        let analysisSeq = 0;
+
+        servingInput.addEventListener('change', () => {
+            // Serving weight changed after an analysis → invalidate the loggable result.
+            if (currentResult) currentResult = null;
+        });
+
+        fileInput.addEventListener('change', e => {
+            if (e.target.files[0]) loadFile(e.target.files[0]);
+        });
+
+        dropzone.addEventListener('dragover', e => {
+            e.preventDefault();
+            dropzone.classList.add('drag-over');
+        });
+
+        dropzone.addEventListener('dragleave', () => dropzone.classList.remove('drag-over'));
+
+        dropzone.addEventListener('drop', e => {
+            e.preventDefault();
+            dropzone.classList.remove('drag-over');
+            const f = e.dataTransfer.files[0];
+            if (f && f.type.startsWith('image/')) loadFile(f);
+        });
+
+        function loadFile(file) {
+            currentFile = file;
+            currentResult = null;
+            errorMsg.classList.remove('show');
+            document.getElementById('log-btn').classList.remove('logged');
+            document.getElementById('log-btn').textContent = '';
+            document.getElementById('log-btn').innerHTML = '<span>＋</span> Log This Meal';
+
+            const reader = new FileReader();
+            reader.onload = e => {
+                previewImg.src = e.target.result;
+                dropzone.classList.add('has-image');
+                analyzeBtn.disabled = false;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // ── Analyze ───────────────────────────────────────────────────────────────
+        analyzeBtn.addEventListener('click', async () => {
+            if (!currentFile) return;
+
+            // Client-side serving weight validation (backend remains authoritative).
+            const servingRaw = servingInput ? String(servingInput.value).trim() : '';
+            const servingNum = parseFloat(servingRaw);
+            const servingValid = servingRaw !== '' && !Number.isNaN(servingNum) && isFinite(servingNum) && servingNum > 0;
+            if (!servingValid) {
+                errorMsg.textContent = 'Please enter a valid serving weight (e.g., 100).';
+                errorMsg.classList.add('show');
+                return;
+            }
+            const servingValue = servingNum;
+
+            analyzeBtn.classList.add('loading');
+            analyzeBtn.disabled = true;
+            errorMsg.classList.remove('show');
+
+            const formData = new FormData();
+            formData.append('file', currentFile);
+            formData.append('serving_g', servingValue);
+
+            const seq = ++analysisSeq;
+
+            try {
+                const r = await fetch(`${API}/analyze-image`, { method: 'POST', body: formData });
+                if (!r.ok) {
+                    let detail = `Server error ${r.status}`;
+                    try {
+                        const errBody = await r.json();
+                        if (errBody && errBody.detail) detail = errBody.detail;
+                    } catch { /* ignore body parse errors */ }
+                    throw new Error(detail);
+                }
+                const data = await r.json();
+                if (seq !== analysisSeq) return; // stale response
+                currentResult = data;
+                currentServingG = data.serving_g != null ? data.serving_g : servingValue;
+                document.getElementById('log-btn').classList.remove('logged');
+                document.getElementById('log-btn').textContent = '';
+                document.getElementById('log-btn').innerHTML = '<span>＋</span> Log This Meal';
+                showResults(data);
+            } catch (e) {
+                if (seq !== analysisSeq) return; // stale response
+                errorMsg.textContent = `Error: ${e.message}`;
+                errorMsg.classList.add('show');
+            } finally {
+                analyzeBtn.classList.remove('loading');
+                analyzeBtn.disabled = false;
+            }
+        });
+
+        // ── Show results ──────────────────────────────────────────────────────────
+        function showResults(data) {
+            // Hide empty state, show results
+            document.getElementById('empty-state').style.display = 'none';
+            const card = document.getElementById('results-card');
+            card.classList.add('visible');
+
+            // Food label
+            document.getElementById('food-label').textContent =
+                data.food.replace(/_/g, ' ').toUpperCase();
+
+            // Confidence bar
+            const pct = Math.round(data.confidence * 100);
+            setTimeout(() => {
+                document.getElementById('conf-bar').style.width = pct + '%';
+            }, 100);
+            document.getElementById('conf-pct').textContent = pct + '%';
+
+            // Serving + macros (values come from the backend, already scaled to the serving)
+            const servingG = data.serving_g != null ? data.serving_g : 100;
+            document.getElementById('result-serving').textContent = `${servingG} g`;
+
+            // Macros
+            document.getElementById('val-cal').textContent = data.calories;
+            document.getElementById('val-pro').textContent = data.protein;
+            document.getElementById('val-carb').textContent = data.carbs;
+            document.getElementById('val-fat').textContent = data.fat;
+
+            document.querySelector('.macro-cell.calories .macro-unit').textContent = `kcal / ${servingG}g`;
+            document.querySelector('.macro-cell.protein .macro-unit').textContent = `grams / ${servingG}g`;
+            document.querySelector('.macro-cell.carbs .macro-unit').textContent = `grams / ${servingG}g`;
+            document.querySelector('.macro-cell.fat .macro-unit').textContent = `grams / ${servingG}g`;
+
+            // Macro bar indicators
+            setTimeout(() => {
+                document.querySelector('.macro-cell.calories').style.setProperty('--bar-w', Math.min(data.calories / 5, 100) + '%');
+                document.querySelector('.macro-cell.protein').style.setProperty('--bar-w', Math.min(data.protein * 3, 100) + '%');
+                document.querySelector('.macro-cell.carbs').style.setProperty('--bar-w', Math.min(data.carbs * 2, 100) + '%');
+                document.querySelector('.macro-cell.fat').style.setProperty('--bar-w', Math.min(data.fat * 4, 100) + '%');
+            }, 200);
+
+            // Top predictions
+            const list = document.getElementById('predictions-list');
+            list.innerHTML = '';
+            const tops = data.top_predictions || [];
+            tops.forEach((p, i) => {
+                const pct = Math.round(p.confidence * 100);
+                const row = document.createElement('div');
+                row.className = `prediction-row pred-row-${i + 1}`;
+                row.innerHTML = `
+        <span class="pred-rank">${i + 1}</span>
+        <span class="pred-name">${p.label.replace(/_/g, ' ')}</span>
+        <div class="pred-bar-wrap"><div class="pred-bar" style="width:${pct}%"></div></div>
+        <span class="pred-pct">${pct}%</span>
+      `;
+                list.appendChild(row);
+                setTimeout(() => row.classList.add('show'), 100 + i * 80);
+            });
+
+            // Show summary card
+            document.getElementById('summary-card').classList.add('visible');
+            loadSummary();
+        }
+
+        // ── Log meal ──────────────────────────────────────────────────────────────
+        const logBtn = document.getElementById('log-btn');
+        logBtn.addEventListener('click', async () => {
+            if (!currentResult || logBtn.classList.contains('logged')) return;
+
+            try {
+                const r = await fetch(`${API}/log-food`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        food: currentResult.food,
+                        confidence: currentResult.confidence,
+                        calories: currentResult.calories,
+                        protein: currentResult.protein,
+                        carbs: currentResult.carbs,
+                        fat: currentResult.fat,
+                    })
+                });
+                if (!r.ok) throw new Error('Log failed');
+                logBtn.classList.add('logged');
+                logBtn.innerHTML = '<span>✓</span> Logged!';
+                showToast('Meal logged to today\'s diary');
+                loadSummary();
+            } catch (e) {
+                showToast('Failed to log meal');
+            }
+        });
+
+        // ── Load daily summary ────────────────────────────────────────────────────
+        async function loadSummary() {
+            try {
+                const [sumR, logsR] = await Promise.all([
+                    fetch(`${API}/daily-summary`),
+                    fetch(`${API}/logs`)
+                ]);
+                const sum = await sumR.json();
+                const logs = await logsR.json();
+
+                document.getElementById('sum-meals').textContent = sum.meals;
+                document.getElementById('sum-cal').textContent = Math.round(sum.total_calories);
+                document.getElementById('sum-pro').textContent = Math.round(sum.total_protein);
+                document.getElementById('sum-carb').textContent = Math.round(sum.total_carbs);
+
+                const list = document.getElementById('logs-list');
+                if (logs.logs && logs.logs.length > 0) {
+                    list.innerHTML = [...logs.logs].reverse().map(l => {
+                        const t = new Date(l.logged_at + 'Z');
+                        const time = t.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                        return `
+            <div class="log-entry">
+              <span class="log-food">${l.food.replace(/_/g, ' ')}</span>
+              <span class="log-time">${time}</span>
+              <span class="log-cal">${l.calories} kcal</span>
+            </div>`;
+                    }).join('');
+                } else {
+                    list.innerHTML = '<div style="text-align:center;color:var(--muted);font-size:12px;font-family:\'DM Mono\',monospace;padding:20px 0">No meals logged yet</div>';
+                }
+            } catch { /* api not ready */ }
+        }
+
+        // ── Toast ─────────────────────────────────────────────────────────────────
+        function showToast(msg) {
+            const t = document.getElementById('toast');
+            t.textContent = msg;
+            t.classList.add('show');
+            setTimeout(() => t.classList.remove('show'), 3000);
+        }
+
+        // Load summary on page load (to show any existing logs from today)
+        loadSummary();
+    </script>
+</body>
+
+</html>
